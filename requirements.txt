@@ -1,0 +1,14 @@
+gradio
+torch
+torchvision
+transformers
+opencv-python-headless
+pillow
+numpy
+scipy
+facenet-pytorch
+librosa
+timm
+einops
+ftfy
+pandas
