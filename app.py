@@ -1,6 +1,5 @@
 # ============================================================
 # DEEPGUARD: AI FAKE IMAGE & VIDEO DETECTOR
-# Professional UI/UX Version 
 # ============================================================
 
 import torch
@@ -86,6 +85,7 @@ class DeepfakeDetector:
             fake_score = (probs[0][1] + probs[0][2]) / 2
 
             confidence = abs(real_score - fake_score).item()
+            is_fake = fake_score > real_score
 
             return {
                 'score': fake_score.item() * 100,
@@ -113,6 +113,7 @@ class DeepfakeDetector:
             total_energy = np.mean(magnitude)
 
             ratio = high_freq_energy / (total_energy + 1e-8)
+            is_fake = ratio < 0.5
 
             return {
                 'score': (1 - min(ratio, 1)) * 100,
@@ -502,7 +503,7 @@ def analyze_media(image=None, video=None, methods=None, progress=gr.Progress()):
     # Format professional outputs
     verdict = results['final_verdict']
 
-    # Build detailed method cards HTML (dark mode variants)
+    # Build detailed method cards HTML
     method_cards = ""
     for method_key, method_data in results['image_results'].items():
         if 'error' not in method_data:
@@ -510,77 +511,101 @@ def analyze_media(image=None, video=None, methods=None, progress=gr.Progress()):
             confidence = method_data.get('confidence', 0)
 
             if score > 60:
-                status_icon = "🔴"
-                card_border = "#b91c1c"
-                bg_color = "#2d1a1a"  # dark red background
-                text_color = "#fecaca"
+                status_icon = "⚠️"
+                card_border = "border-red-500"
+                bg_color = "bg-red-50"
             elif score > 40:
-                status_icon = "🟡"
-                card_border = "#a16207"
-                bg_color = "#2a2416"  # dark yellow background
-                text_color = "#fde68a"
+                status_icon = "⚡"
+                card_border = "border-yellow-500"
+                bg_color = "bg-yellow-50"
             else:
-                status_icon = "🟢"
-                card_border = "#166534"
-                bg_color = "#1a2e1a"  # dark green background
-                text_color = "#bbf7d0"
+                status_icon = "✓"
+                card_border = "border-green-500"
+                bg_color = "bg-green-50"
 
             method_name = {
-                'clip': 'CLIP Semantic Analysis',
+                'clip': 'CLIP Semantic',
                 'frequency': 'Spectral Analysis',
                 'face_artifacts': 'Facial Geometry',
                 'noise': 'Noise Patterns'
             }.get(method_key, method_key)
 
             method_cards += f"""
-            <div style="background:{bg_color}; border-left:6px solid {card_border}; padding:1rem; border-radius:8px; margin-bottom:0.75rem; box-shadow:0 2px 4px rgba(0,0,0,0.3);">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:600; font-size:0.95rem; color:{text_color};">{status_icon} {method_name}</span>
-                    <span style="background:#1f2937; color:#e5e7eb; padding:0.25rem 0.75rem; border-radius:20px; font-size:0.85rem; font-weight:500; border:1px solid #4b5563;">{score:.1f}% synthetic</span>
+            <div class="method-card {bg_color} border-l-4 {card_border} p-3 rounded mb-2">
+                <div class="flex justify-between items-center">
+                    <span class="font-semibold text-sm">{status_icon} {method_name}</span>
+                    <span class="text-xs font-mono bg-white px-2 py-1 rounded border">{score:.1f}% synthetic</span>
                 </div>
-                <div style="font-size:0.85rem; color:#9ca3af; margin-top:0.5rem;">Confidence: {confidence:.1f}%</div>
+                <div class="text-xs text-gray-600 mt-1">Confidence: {confidence:.1f}%</div>
             </div>
             """
 
-    # Main verdict display with gauge and modern cards (dark mode)
+    # Main verdict display with gauge
     score_display = f"""
-    <div style="font-family: 'Inter', system-ui, sans-serif; color: #e5e7eb;">
-        <!-- Main verdict card -->
-        <div style="background: linear-gradient(135deg, {verdict.get('risk_color', '#666')}25, {verdict.get('risk_color', '#666')}10); border:1px solid {verdict.get('risk_color', '#666')}60; border-radius:20px; padding:1.5rem; margin-bottom:2rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                <h2 style="margin:0; font-size:1.8rem; font-weight:700; color:{verdict.get('risk_color', '#e5e7eb')};">{verdict.get('verdict', 'UNKNOWN')}</h2>
-                <span style="background:{verdict.get('risk_color', '#666')}; color:white; padding:0.25rem 1rem; border-radius:40px; font-size:0.85rem; font-weight:600; text-transform:uppercase;">{verdict.get('risk_level', 'N/A')} RISK</span>
+    <div class="verdict-container" style="font-family: 'Inter', system-ui, sans-serif;">
+        <div class="verdict-header" style="background: linear-gradient(135deg, {verdict.get('risk_color', '#666')}20, {verdict.get('risk_color', '#666')}05);
+             border-left: 6px solid {verdict.get('risk_color', '#666')};
+             padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: {verdict.get('risk_color', '#666')};">
+                    {verdict.get('verdict', 'UNKNOWN')}
+                </h2>
+                <span style="background: {verdict.get('risk_color', '#666')}; color: white; padding: 0.25rem 0.75rem;
+                      border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Risk: {verdict.get('risk_level', 'N/A')}
+                </span>
             </div>
-            <p style="font-size:1rem; color:#d1d5db; margin-bottom:1.5rem;">{verdict.get('algorithm_agreement', 'N/A')} detection methods flagged anomalies</p>
-            
-            <!-- Gauge -->
-            <div style="background:#374151; height:12px; border-radius:20px; overflow:hidden; margin-bottom:0.5rem;">
-                <div style="background:linear-gradient(90deg, #16a34a 0%, #ca8a04 50%, #dc2626 100%); width:{verdict.get('fake_probability', 50)}%; height:100%; transition:width 0.5s ease;"></div>
+
+            <div style="font-size: 0.875rem; color: #4b5563; margin-bottom: 1rem;">
+                {verdict.get('algorithm_agreement', 'N/A')} detection methods flagged anomalies
             </div>
-            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#9ca3af;">
+
+            <!-- Gauge visualization -->
+            <div style="background: #e5e7eb; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
+                <div style="background: linear-gradient(90deg, #16a34a 0%, #ca8a04 50%, #dc2626 100%);
+                     width: {verdict.get('fake_probability', 50)}%; height: 100%;
+                     transition: width 0.5s ease; position: relative;">
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; font-weight: 500;">
                 <span>Authentic ({100 - verdict.get('fake_probability', 50):.1f}%)</span>
                 <span>Synthetic ({verdict.get('fake_probability', 50):.1f}%)</span>
             </div>
         </div>
 
-        <!-- Stats cards -->
-        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1rem; margin-bottom:2rem;">
-            <div style="background:#1f2937; padding:1.25rem; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,0.3); border:1px solid #374151;">
-                <div style="font-size:0.8rem; text-transform:uppercase; color:#9ca3af; margin-bottom:0.5rem;">Confidence</div>
-                <div style="font-size:2rem; font-weight:700; color:#f3f4f6;">{verdict.get('confidence', 0):.1f}%</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="background: #f9fafb; padding: 1rem; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 0.25rem;">
+                    Confidence Score
+                </div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #111827;">
+                    {verdict.get('confidence', 0):.1f}%
+                </div>
             </div>
-            <div style="background:#1f2937; padding:1.25rem; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,0.3); border:1px solid #374151;">
-                <div style="font-size:0.8rem; text-transform:uppercase; color:#9ca3af; margin-bottom:0.5rem;">Methods</div>
-                <div style="font-size:2rem; font-weight:700; color:#f3f4f6;">{len(results['image_results']) + len(results['video_results'])}</div>
+
+            <div style="background: #f9fafb; padding: 1rem; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 0.25rem;">
+                    Analysis Methods
+                </div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #111827;">
+                    {len(results['image_results']) + len(results['video_results'])}
+                </div>
             </div>
-            <div style="background:#1f2937; padding:1.25rem; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,0.3); border:1px solid #374151;">
-                <div style="font-size:0.8rem; text-transform:uppercase; color:#9ca3af; margin-bottom:0.5rem;">Analyzed</div>
-                <div style="font-size:1rem; font-weight:600; color:#f3f4f6;">{results['timestamp']}</div>
+
+            <div style="background: #f9fafb; padding: 1rem; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 0.25rem;">
+                    Timestamp
+                </div>
+                <div style="font-size: 0.875rem; font-weight: 600; color: #111827;">
+                    {results['timestamp']}
+                </div>
             </div>
         </div>
 
-        <h3 style="font-size:1.25rem; font-weight:600; margin-bottom:1rem; color:#f3f4f6;">🔍 Method Details</h3>
-        {method_cards if method_cards else '<div style="color:#9ca3af; font-size:0.95rem;">No detailed method results available</div>'}
+        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: #111827;">Detection Method Details</h3>
+        {method_cards if method_cards else '<div style="color: #6b7280; font-size: 0.875rem;">No detailed method results available</div>'}
     </div>
     """
 
@@ -589,190 +614,134 @@ def analyze_media(image=None, video=None, methods=None, progress=gr.Progress()):
 
     # Processing steps summary
     steps_summary = "\n".join([
-        f"✅ {step['method']}: {', '.join(step['indicators'][:2])}"
+        f"✓ {step['method']}: {', '.join(step['indicators'][:2])}"
         for step in results['processing_steps']
     ])
 
     return score_display, heatmap, details_json, steps_summary
 
 # ============================================================
-# Professional Gradio Interface - DARK MODE
+# Professional Gradio Interface 
 # ============================================================
 
 custom_css = """
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
-
-* {
-    box-sizing: border-box;
-}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 .gradio-container {
-    font-family: 'Inter', sans-serif !important;
-    max-width: 1400px !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    max-width: 1200px !important;
     margin: 0 auto !important;
-    background: #0f172a !important;  /* Dark navy background */
-    padding: 2rem !important;
 }
 
-/* Main header (already dark, keep it) */
+/* Header styling */
 .main-header {
-    background: linear-gradient(145deg, #0b1120 0%, #1a2639 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     color: white;
-    padding: 2.5rem;
-    border-radius: 32px;
-    margin-bottom: 2.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    border: 1px solid #334155;
+    padding: 2rem;
+    border-radius: 16px;
+    margin-bottom: 2rem;
+    text-align: center;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .main-header h1 {
-    margin: 0;
-    font-size: 2.8rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #a5f3fc, #c084fc);
+    margin: 0 0 0.5rem 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #60a5fa, #a78bfa);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    letter-spacing: -0.02em;
 }
 
 .main-header p {
-    margin: 0.5rem 0 0 0;
-    color: #9aa4b9;
-    font-size: 1.1rem;
+    margin: 0;
+    color: #94a3b8;
+    font-size: 1.125rem;
 }
 
-/* Sidebar / input panel */
+/* Input panel */
 .input-panel {
-    background: #1e293b;  /* Dark slate */
-    border-radius: 28px;
-    padding: 2rem;
-    box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
-    border: 1px solid #334155;
-    height: fit-content;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
-.input-panel h3 {
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    color: #f1f5f9;
+/* Method cards in results */
+.method-card {
+    transition: all 0.2s ease;
 }
 
-/* Tabs */
-.tab-nav {
-    border-bottom: 2px solid #334155 !important;
-    margin-bottom: 1.5rem !important;
-}
-
-.tab-nav button {
-    font-weight: 600 !important;
-    font-size: 1rem !important;
-    padding: 0.75rem 1.5rem !important;
-    color: #94a3b8 !important;
-}
-
-.tab-selected {
-    border-bottom: 3px solid #3b82f6 !important;
-    color: #60a5fa !important;
+.method-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 /* Buttons */
 .primary-btn {
-    background: linear-gradient(145deg, #1e3a8a, #2563eb) !important;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
     border: none !important;
-    border-radius: 60px !important;
+    border-radius: 8px !important;
     font-weight: 600 !important;
-    padding: 0.9rem 2.5rem !important;
-    font-size: 1.1rem !important;
-    box-shadow: 0 10px 20px -5px #1e3a8a80 !important;
+    padding: 0.75rem 2rem !important;
     transition: all 0.2s !important;
-    width: 100%;
-    margin-top: 1rem;
-    color: white !important;
 }
 
 .primary-btn:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 20px 30px -5px #1e3a8a !important;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3) !important;
 }
 
-.secondary-btn {
-    background: #334155 !important;
-    border: 1px solid #475569 !important;
-    border-radius: 60px !important;
-    color: #e2e8f0 !important;
-    font-weight: 500 !important;
-    padding: 0.75rem 2rem !important;
-    width: 100%;
-    margin-top: 0.75rem;
+/* Tabs */
+.tab-nav {
+    border-bottom: 2px solid #e2e8f0 !important;
 }
 
-.secondary-btn:hover {
-    background: #3b4a5c !important;
+.tab-selected {
+    border-bottom: 2px solid #3b82f6 !important;
+    color: #2563eb !important;
+    font-weight: 600 !important;
 }
 
-/* Checkbox group styling */
-.gr-checkbox-group {
-    background: #1e293b !important;
-    border-radius: 20px;
-    padding: 1rem;
-    border: 1px solid #334155;
-    color: #e2e8f0;
+/* Status badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-.gr-checkbox-group span {
-    color: #e2e8f0 !important;
-}
-
-/* Results area */
-.results-panel {
-    background: #1e293b;
-    border-radius: 28px;
-    padding: 2rem;
-    box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
-    border: 1px solid #334155;
-    min-height: 600px;
-}
-
-.results-panel h3, .results-panel .gr-markdown {
-    color: #f1f5f9;
-}
-
-/* Image previews */
+/* Image containers */
 .image-preview {
-    border-radius: 24px;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-    border: 1px solid #334155;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 /* JSON viewer */
 .json-viewer {
-    background: #0b1120 !important;
+    background: #0f172a !important;
     color: #e2e8f0 !important;
-    border-radius: 16px !important;
-    padding: 1.5rem !important;
+    border-radius: 8px !important;
     font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-    font-size: 0.9rem !important;
-    border: 1px solid #334155;
+    font-size: 0.875rem !important;
 }
 
-/* Progress bar */
+/* Progress bar customization */
 .progress-track {
-    background: #334155;
-    border-radius: 60px;
+    background: #e2e8f0;
+    border-radius: 9999px;
     overflow: hidden;
-    height: 8px;
 }
 
 .progress-fill {
-    background: linear-gradient(90deg, #3b82f6, #a855f7);
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
     height: 100%;
     transition: width 0.3s ease;
 }
@@ -780,123 +749,71 @@ custom_css = """
 /* Footer */
 .footer {
     margin-top: 3rem;
-    padding: 2rem;
-    background: #1e293b;
-    border-radius: 28px;
-    border: 1px solid #334155;
+    padding-top: 2rem;
+    border-top: 1px solid #e2e8f0;
     text-align: center;
-    color: #9ca3af;
-    font-size: 0.95rem;
-    display: flex;
-    justify-content: center;
-    gap: 2rem;
-    flex-wrap: wrap;
+    color: #64748b;
+    font-size: 0.875rem;
 }
 
-.footer a {
-    color: #60a5fa;
-    text-decoration: none;
-    font-weight: 500;
-}
-
-/* Responsive */
+/* Responsive adjustments */
 @media (max-width: 768px) {
-    .gradio-container { padding: 1rem !important; }
-    .main-header { flex-direction: column; text-align: center; gap: 1rem; }
-    .main-header h1 { font-size: 2rem; }
-}
+    .main-header h1 {
+        font-size: 1.875rem;
+    }
 
-/* Fix Gradio default text colors in dark mode */
-.gr-box, .gr-form, .gr-panel, .gr-group, .gr-input, .gr-text-input, .gr-dropdown, .gr-number-input, .gr-slider, .gr-checkbox, .gr-radio, .gr-textarea, .gr-output, .gr-dataframe, .gr-json {
-    color: #e2e8f0 !important;
-    background-color: #1e293b !important;
-    border-color: #334155 !important;
-}
-
-.gr-input-label, .gr-label {
-    color: #cbd5e1 !important;
-}
-
-/* Tabs content */
-.tabs {
-    background: #1e293b !important;
-}
-
-/* Progress bar text */
-.progress-text {
-    color: #9ca3af !important;
-}
-
-/* Tooltip */
-.gr-tooltip {
-    background: #334155 !important;
-    color: #f3f4f6 !important;
-    border: 1px solid #475569;
-}
-
-/* Markdown */
-.gr-markdown {
-    color: #e2e8f0 !important;
-}
-
-.gr-markdown p, .gr-markdown li, .gr-markdown h1, .gr-markdown h2, .gr-markdown h3, .gr-markdown h4, .gr-markdown h5, .gr-markdown h6 {
-    color: inherit !important;
-}
-
-/* Code */
-.gr-code {
-    background: #0b1120 !important;
-    color: #e2e8f0 !important;
+    .main-header {
+        padding: 1.5rem;
+    }
 }
 """
 
-with gr.Blocks(css=custom_css, title="DeepGuard - AI Media Forensics") as demo:
+with gr.Blocks(css=custom_css, title="DeepGuard - AI Media Forensics", theme=gr.themes.Soft()) as demo:
 
-    # Header with badge (removed version badge)
+    # Header
     gr.HTML("""
     <div class="main-header">
-        <div>
-            <h1>🛡️ DeepGuard</h1>
-            <p>Advanced AI-Generated Media Detection & Forensic Analysis</p>
-        </div>
+        <h1>🛡️ DeepGuard</h1>
+        <p>Advanced AI-Generated Media Detection & Forensic Analysis</p>
     </div>
     """)
 
     with gr.Row(equal_height=True):
-        # Left column - Input panel
-        with gr.Column(scale=4, elem_classes="input-panel"):
-            gr.Markdown("### 📤 Upload Media")
-            
+        # Left Column - Inputs
+        with gr.Column(scale=1, elem_classes="input-panel"):
+            gr.Markdown("### 📤 Upload Media for Analysis")
+
             with gr.Tabs():
-                with gr.TabItem("🖼️ Image"):
+                with gr.TabItem("🖼️ Image Analysis", id=0):
                     image_input = gr.Image(
-                        label="",
+                        label="Upload Image (JPG, PNG, WEBP)",
                         type="pil",
-                        height=300,
+                        height=350,
                         elem_classes="image-preview",
-                        show_label=False
+                        show_label=True
                     )
+
                     gr.Markdown("""
-                    <div style="margin-top: 0.5rem; padding: 0.75rem; background: #1f2937; border-radius: 16px; font-size: 0.9rem; color: #9ca3af; border:1px solid #374151;">
-                        <i class="fas fa-lightbulb" style="color: #f59e0b; margin-right: 8px;"></i>
-                        <strong style="color:#e2e8f0;">Tip:</strong> High‑resolution images with faces yield best results.
+                    <div style="margin-top: 0.5rem; padding: 0.75rem; background: #f8fafc; border-radius: 8px; font-size: 0.875rem; color: #475569;">
+                        <strong>💡 Tip:</strong> For best results, use high-resolution images with visible faces. The system analyzes facial geometry, noise patterns, and semantic consistency.
                     </div>
                     """)
 
-                with gr.TabItem("🎬 Video"):
+                with gr.TabItem("🎬 Video Analysis", id=1):
                     video_input = gr.File(
-                        label="",
+                        label="Upload Video (MP4, MOV, AVI)",
                         file_types=[".mp4", ".mov", ".avi", ".mkv"],
-                        height=300
+                        height=350
                     )
+
                     gr.Markdown("""
-                    <div style="margin-top: 0.5rem; padding: 0.75rem; background: #1f2937; border-radius: 16px; font-size: 0.9rem; color: #9ca3af; border:1px solid #374151;">
-                        <i class="fas fa-clock" style="color: #3b82f6; margin-right: 8px;"></i>
-                        <strong style="color:#e2e8f0;">Processing may take 30‑60 seconds.</strong>
+                    <div style="margin-top: 0.5rem; padding: 0.75rem; background: #f8fafc; border-radius: 8px; font-size: 0.875rem; color: #475569;">
+                        <strong>⚠️ Note:</strong> Video analysis samples 20 frames and checks temporal consistency. Processing may take 30-60 seconds depending on duration.
                     </div>
                     """)
 
             gr.Markdown("### 🔬 Detection Methods")
+
             method_check = gr.CheckboxGroup(
                 choices=[
                     "CLIP Analysis (Semantic)",
@@ -911,69 +828,69 @@ with gr.Blocks(css=custom_css, title="DeepGuard - AI Media Forensics") as demo:
                     "Face Artifacts (Geometry)",
                     "Noise Analysis (Sensor)"
                 ],
-                label="",
-                info="Select methods (more = higher accuracy, slower)"
+                label="Active Detection Algorithms",
+                info="Select forensic methods to apply. More methods = higher accuracy but slower processing."
             )
 
             analyze_btn = gr.Button(
                 "🔍 Start Forensic Analysis",
                 variant="primary",
-                elem_classes="primary-btn"
-            )
-            clear_btn = gr.Button(
-                "🔄 Clear & Reset",
-                elem_classes="secondary-btn"
+                elem_classes="primary-btn",
+                scale=1
             )
 
-        # Right column - Results
-        with gr.Column(scale=6, elem_classes="results-panel"):
+            clear_btn = gr.Button("🔄 Clear & Reset", variant="secondary", size="sm")
+
+        # Right Column - Results
+        with gr.Column(scale=1):
             gr.Markdown("### 📊 Forensic Report")
-            
+
             with gr.Tabs():
-                with gr.TabItem("🎯 Verdict"):
-                    score_output = gr.HTML(label="")
+                with gr.TabItem("🎯 Verdict", id=0):
+                    score_output = gr.HTML(label="Analysis Results")
+
                     with gr.Row():
-                        with gr.Column(scale=5):
+                        with gr.Column(scale=1):
                             heatmap_output = gr.Image(
                                 label="Anomaly Heatmap",
-                                height=260,
+                                height=280,
                                 elem_classes="image-preview",
                                 show_label=True
                             )
-                        with gr.Column(scale=5):
+                        with gr.Column(scale=1):
                             steps_output = gr.Textbox(
                                 label="Processing Steps",
-                                lines=7,
+                                lines=8,
                                 interactive=False,
-                                value="Awaiting analysis...",
-                                elem_classes="steps-box"
+                                value="Awaiting analysis..."
                             )
-                
-                with gr.TabItem("🔬 Technical Data"):
+
+                with gr.TabItem("🔬 Technical Data", id=1):
                     json_output = gr.Code(
                         label="Raw Detection Data (JSON)",
                         language="json",
                         elem_classes="json-viewer",
-                        lines=18
+                        lines=20
                     )
+
                     gr.Markdown("""
-                    <div style="margin-top: 1rem; padding: 1rem; background: #1f2937; border-left: 6px solid #f59e0b; border-radius: 12px; font-size: 0.9rem; color: #9ca3af;">
-                        <i class="fas fa-exclamation-triangle" style="color: #f59e0b; margin-right: 8px;"></i>
-                        <strong style="color:#e2e8f0;">Note:</strong> Scores above 60% indicate synthetic content. Always cross‑check multiple methods.
+                    <div style="margin-top: 1rem; padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; font-size: 0.875rem;">
+                        <strong>⚠️ Developer Notice:</strong> Raw scores above 60% indicate synthetic content probability. Cross-reference multiple methods for high-confidence verdicts.
                     </div>
                     """)
 
     # Footer
     gr.HTML("""
     <div class="footer">
-        <span><i class="fas fa-copyright"></i> 2026 DeepGuard · Forensic Suite</span>
-        <span><i class="fas fa-code-branch"></i> v1.0.0</span>
-        <span><i class="fas fa-flask"></i> Research Use Only</span>
-        <span><a href="#" target="_blank"><i class="fab fa-github"></i> GitHub</a></span>
+        <p><strong>DeepGuard Forensic Suite v1.0</strong> • Powered by CLIP, EfficientNet & Computer Vision</p>
+        <p style="margin-top: 0.5rem; font-size: 0.75rem;">
+            ⚠️ <strong>Ethical Use Required:</strong> This tool is for security research, content verification, and educational purposes only.
+            Results are probabilistic and should be combined with human expert analysis for legal or journalistic verification.
+        </p>
     </div>
     """)
 
-    # Event handlers
+    # Event Handlers
     analyze_btn.click(
         fn=analyze_media,
         inputs=[image_input, video_input, method_check],
@@ -990,10 +907,8 @@ with gr.Blocks(css=custom_css, title="DeepGuard - AI Media Forensics") as demo:
     )
 
 # ============================================================
-# Launch for Render (and Hugging Face)
+# Launch for Hugging Face Spaces
 # ============================================================
 if __name__ == "__main__":
-    import os
-    # Use the PORT variable from Render (default 7860 for local testing)
-    port = int(os.environ.get("PORT", 7860))
-    demo.launch(server_name="0.0.0.0", server_port=port)
+    demo.launch(server_name="0.0.0.0")
+    
