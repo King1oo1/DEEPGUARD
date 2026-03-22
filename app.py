@@ -2,6 +2,10 @@
 # DEEPGUARD: AI FAKE IMAGE & VIDEO DETECTOR
 # Robust version for Render – handles missing imports, port binding
 # ============================================================
+import sys
+print("=== DeepGuard starting, Python version:", sys.version)
+sys.stdout.flush()
+
 
 import os
 import sys
