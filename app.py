@@ -1,5 +1,7 @@
 # ============================================================
-# DEEPGUARD + MIMI — ALWAYS AWAKE + REACTIVE BUTTONS
+# DEEPGUARD with Mimi assistant MODERN UI (RESPONSIVE + COMPACT NEON BUTTONS)
+# TTA + Adversarial + Input Protection + Explain Toggle
+# Auto‑clean temp + Feedback + Reviews + Hugging Face Upload
 # ============================================================
 
 import torch
@@ -884,7 +886,7 @@ with gr.Blocks(css=custom_css, title="DeepGuard + Mimi") as demo:
             submit_review_btn = gr.Button("Submit Review", elem_classes="neon-btn")
             review_output = gr.HTML(label="")
 
-    # Legal notice (bigger size)
+    # Legal notice 
     gr.HTML("""
     <div class="legal-note">
         <i class="fas fa-info-circle"></i> <strong>Legal notice:</strong> By clicking 👍 or 👎, 
@@ -963,7 +965,6 @@ with gr.Blocks(css=custom_css, title="DeepGuard + Mimi") as demo:
     gr.HTML("""
     <div class="footer">
         <span><i class="fas fa-copyright"></i> 2026 DeepGuard</span>
-        <span><i class="fas fa-code-branch"></i> v5.0</span>
         <span><i class="fas fa-flask"></i> Research Use Only</span>
         <span><i class="fas fa-database"></i> Feedback stored & uploaded to Hugging Face Hub</span>
     </div>
