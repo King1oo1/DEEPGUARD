@@ -299,7 +299,7 @@ WELCOME_MSG = """
     <p style="color:#94a3b8;font-size:0.85rem;margin:0;line-height:1.5;">
         I'm Mimi, your AI detection assistant!<br>
         Upload an image and I'll analyze if it's real or fake.<br>
-        I use spectral analysis, face geometry, and noise patterns<br>
+        I use a fine‑tuned Vision Transformer, test‑time augmentation, and forensic checks.<br>
         to detect AI-generated content. Let's catch some fakes! 🔍
     </p>
 </div>
