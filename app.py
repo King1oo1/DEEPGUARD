@@ -1,7 +1,5 @@
 # ============================================================
-# DEEPGUARD – MODERN UI (RESPONSIVE + COMPACT NEON BUTTONS)
-# TTA + Adversarial + Input Protection + Explain Toggle
-# Auto‑clean temp + Feedback + Reviews + Hugging Face Upload
+# DEEPGUARD + MIMI — ALWAYS AWAKE + REACTIVE BUTTONS
 # ============================================================
 
 import torch
@@ -291,13 +289,80 @@ def validate_image(image):
     return True, ""
 
 # ============================================================
-# Main Analysis Function (Modern HTML output)
+# MIMI EMOJI SYSTEM (Always Awake)
+# ============================================================
+WELCOME_MSG = """
+<div style="text-align:center;padding:1.2rem;background:linear-gradient(145deg,#1e3a5f20,#0f172a);border-radius:16px;border:1px solid #334155;margin-top:0.8rem;">
+    <h3 style="color:#67e8f9;margin:0 0 0.5rem 0;">👋 Welcome to DeepGuard!</h3>
+    <p style="color:#94a3b8;font-size:0.85rem;margin:0;line-height:1.5;">
+        I'm Mimi, your AI detection assistant!<br>
+        Upload an image and I'll analyze if it's real or fake.<br>
+        I use spectral analysis, face geometry, and noise patterns<br>
+        to detect AI-generated content. Let's catch some fakes! 🔍
+    </p>
+</div>
+"""
+
+def get_mimi_html(emoji, text, color, extra_html=""):
+    return f"""
+    <div style="text-align:center;padding:2rem;background:linear-gradient(145deg,{color}10,{color}05);border-radius:24px;border:2px solid {color}30;transition:all 0.4s ease;">
+        <div style="font-size:6rem;display:inline-block;animation:bounceIn 0.5s ease;">{emoji}</div>
+        <div style="margin-top:1rem;font-size:1.2rem;color:{color};font-weight:700;">{text}</div>
+    </div>
+    {extra_html}
+    <style>
+        @keyframes bounceIn {{
+            0% {{ transform: scale(0.3); opacity: 0; }}
+            50% {{ transform: scale(1.1); }}
+            70% {{ transform: scale(0.9); }}
+            100% {{ transform: scale(1); opacity: 1; }}
+        }}
+    </style>
+    """
+
+def mimi_idle():
+    return get_mimi_html("👀", "Waiting for image...", "#94a3b8", WELCOME_MSG)
+
+def mimi_thinking():
+    return get_mimi_html("🤔", "Analyzing...", "#f59e0b")
+
+def mimi_fake():
+    return get_mimi_html("🤖💀", "FAKE DETECTED!", "#EF4444", """
+        <div style="text-align:center;padding:0.75rem;background:#EF444420;border-radius:12px;margin-top:0.75rem;">
+            <p style="color:#EF4444;margin:0;font-size:0.85rem;">🚨 AI-generated content detected!</p>
+        </div>
+    """)
+
+def mimi_real():
+    return get_mimi_html("😊✅", "This is REAL!", "#10B981", """
+        <div style="text-align:center;padding:0.75rem;background:#10B98120;border-radius:12px;margin-top:0.75rem;">
+            <p style="color:#10B981;margin:0;font-size:0.85rem;">🎉 Authentic content found!</p>
+        </div>
+    """)
+
+def mimi_thumbs_up():
+    return get_mimi_html("👍🎉", "Thanks for the feedback!", "#8B5CF6", WELCOME_MSG)
+
+def mimi_thumbs_down():
+    return get_mimi_html("😓👎", "Feedback noted, I'll improve!", "#F97316", WELCOME_MSG)
+
+def mimi_explain():
+    return get_mimi_html("🧠💡", "Explanation ready!", "#14B8A6", WELCOME_MSG)
+
+def mimi_invalid():
+    return get_mimi_html("❌😵", "Invalid image!", "#dc2626", WELCOME_MSG)
+
+# ============================================================
+# Main Analysis Function
 # ============================================================
 def analyze_media(image=None, progress=gr.Progress()):
     if image is None:
-        return (gr.update(value="⚠️ Please upload an image."),
-                "{}", "", None,
-                gr.update(visible=False), gr.update(value=""))
+        return (
+            gr.update(value="⚠️ Please upload an image."),
+            "{}", "", None,
+            gr.update(visible=False), gr.update(value=""),
+            mimi_idle()
+        )
 
     is_valid, error_msg = validate_image(image)
     if not is_valid:
@@ -307,8 +372,11 @@ def analyze_media(image=None, progress=gr.Progress()):
             <p>{error_msg}</p>
         </div>
         """
-        return (gr.update(value=error_html), "{}", "", None,
-                gr.update(visible=False), gr.update(value=""))
+        return (
+            gr.update(value=error_html), "{}", "", None,
+            gr.update(visible=False), gr.update(value=""),
+            mimi_invalid()
+        )
 
     clear_temp_directory()
     progress(0, desc="Initializing DeepGuard...")
@@ -327,11 +395,14 @@ def analyze_media(image=None, progress=gr.Progress()):
     else:
         verdict, color, risk = "REAL", "#10b981", "LOW"
 
-    badge_class = "fake" if verdict == "FAKE" else "real"
+    if verdict == "FAKE":
+        mimi_final = mimi_fake()
+    else:
+        mimi_final = mimi_real()
 
     score_display = f"""
     <div class="verdict-glass">
-        <div class="verdict-badge {badge_class}">{verdict}</div>
+        <div class="verdict-badge {verdict.lower()}">{verdict}</div>
         <div>Fake Probability: {final_score:.1f}%</div>
         <div style="color:#9ca3af; font-size:0.9rem;">Confidence: {res['confidence']:.1f}%</div>
         <div class="gauge-container"><div class="gauge-fill" style="width: {final_score}%;"></div></div>
@@ -370,27 +441,31 @@ def analyze_media(image=None, progress=gr.Progress()):
 
     progress(1.0, desc="Analysis complete!")
 
-    return (score_display, results_json, extra_info,
-            gr.update(visible=True), gr.update(value=""))
+    return (
+        score_display, results_json, extra_info,
+        gr.update(visible=True), gr.update(value=""),
+        mimi_final
+    )
 
 # ============================================================
-# Feedback Callbacks
+# Feedback Callbacks (with Mimi reactions)
 # ============================================================
 def on_thumbs_up(extra_info):
     if extra_info is None:
         gr.Info("No analysis data. Please run analysis first.", duration=3)
-        return
+        return mimi_idle()
     image_hash = extra_info['image_hash']
     target_verdict = extra_info['verdict']
     final_path = move_image_to_final_storage(image_hash, target_verdict)
     update_feedback_in_db(image_hash, user_feedback=1, final_path=final_path)
     upload_feedback_to_hub(image_hash, extra_info['score'], extra_info['confidence'], target_verdict, 1)
     gr.Info("👍 Thanks! Your feedback helps improve the model.", duration=3)
+    return mimi_thumbs_up()
 
 def on_thumbs_down(extra_info):
     if extra_info is None:
         gr.Info("No analysis data. Please run analysis first.", duration=3)
-        return
+        return mimi_idle()
     image_hash = extra_info['image_hash']
     model_verdict = extra_info['verdict']
     target_verdict = "REAL" if model_verdict == "FAKE" else "FAKE"
@@ -398,6 +473,7 @@ def on_thumbs_down(extra_info):
     update_feedback_in_db(image_hash, user_feedback=0, final_path=final_path)
     upload_feedback_to_hub(image_hash, extra_info['score'], extra_info['confidence'], model_verdict, 0)
     gr.Info("👎 Thanks! Your feedback helps improve the model.", duration=3)
+    return mimi_thumbs_down()
 
 def on_submit_review(extra_info, review_text):
     if extra_info is None:
@@ -424,10 +500,11 @@ def on_submit_review(extra_info, review_text):
 
 def toggle_explanation(extra_info, shown):
     if shown:
-        return "", False
+        return "", False, mimi_idle()
     else:
         if extra_info is None:
             explanation = "No analysis data. Please run analysis first."
+            mimi_react = mimi_idle()
         else:
             verdict = extra_info['verdict']
             fake_prob = extra_info['score']
@@ -445,12 +522,13 @@ def toggle_explanation(extra_info, shown):
             - TTA stability score (std): {tta_std:.1f}% {'(high – prediction is unstable)' if tta_std > 10 else '(low – prediction is stable)'}
             - Adversarial check: adding random noise changed the score by {adv_diff:.1f}% {'– this is suspicious (could indicate manipulation)' if adv_susp else '– this is normal for real images'}
 
-            **Final conclusion:** The image is classified as **{verdict}** because the model’s features strongly indicate {('AI generation' if verdict == 'FAKE' else 'authentic content')}.
+            **Final conclusion:** The image is classified as **{verdict}** because the model's features strongly indicate {('AI generation' if verdict == 'FAKE' else 'authentic content')}.
             """
-        return explanation, True
+            mimi_react = mimi_explain()
+        return explanation, True, mimi_react
 
 # ============================================================
-# Modern UI with Responsive Glassmorphism + Compact Neon Buttons
+# Modern UI with Glassmorphism & Hover Effects
 # ============================================================
 custom_css = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap');
@@ -474,7 +552,7 @@ custom_css = """
     backdrop-filter: blur(12px);
     border-radius: 2rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-bottom: 4px solid #8b5cf6;   /* bottom accent line */
+    border-bottom: 1px solid #8b5cf6;
     padding: 2rem;
     text-align: center;
     margin-bottom: 2rem;
@@ -524,6 +602,22 @@ custom_css = """
     box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
 }
 
+/* Mimi panel hover effect (same as glass-card) */
+.mimi-panel {
+    background: rgba(30, 35, 48, 0.5);
+    backdrop-filter: blur(16px);
+    border-radius: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mimi-panel:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
+}
+
 .upload-area {
     border: 2px dashed rgba(168, 85, 247, 0.5);
     border-radius: 1.5rem;
@@ -536,7 +630,6 @@ custom_css = """
     background: rgba(168, 85, 247, 0.05);
 }
 
-/* Compact neon button – slightly smaller */
 .neon-btn {
     background: linear-gradient(95deg, #3b82f6, #8b5cf6);
     border: none;
@@ -637,52 +730,36 @@ custom_css = """
     background: rgba(255,255,255,0.05);
 }
 
-.rating-section {
+.mimi-controls {
+    display: flex;
+    gap: 0.5rem;
     margin-top: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
+.mimi-controls button {
+    flex: 1;
+    min-width: 100px;
+}
+
+.feedback-buttons {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+/* Legal notice - bigger size */
 .legal-note {
-    font-size: 0.75rem;
-    color: #9ca3af;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #cbd5e1;
     margin-top: 1rem;
     text-align: center;
-}
-
-/* Review Section */
-.review-heading {
-    font-size: 1.8rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #a5f3fc, #c084fc, #f472b6);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
-    text-align: center;
-}
-
-.review-sub {
-    text-align: center;
-    color: #9ca3af;
-    margin-bottom: 1.5rem;
-    font-size: 0.9rem;
-}
-
-.glass-textarea {
-    background: rgba(0, 0, 0, 0.4) !important;
-    border: 1.5px solid rgba(139, 92, 246, 0.6) !important;
-    border-radius: 1.2rem !important;
-    padding: 1rem !important;
-    color: #e2e8f0 !important;
-    font-size: 1rem !important;
-    font-family: 'Inter', monospace !important;
-    transition: all 0.2s ease !important;
-}
-
-.glass-textarea:focus {
-    border-color: #c084fc !important;
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.4) !important;
-    outline: none !important;
+    background: rgba(0,0,0,0.3);
+    padding: 0.5rem;
+    border-radius: 12px;
 }
 
 .footer {
@@ -705,144 +782,56 @@ custom_css = """
     font-family: monospace;
 }
 
-/* ========== RESPONSIVE DESIGN ========== */
-/* Tablet view (max-width: 1024px) */
+/* Responsive */
 @media (max-width: 1024px) {
-    .gradio-container {
-        padding: 1.5rem !important;
-    }
-    .glass-header h1 {
-        font-size: 2.5rem;
-    }
-    .glass-header p {
-        font-size: 1rem;
-    }
-    .glass-card {
-        padding: 1.2rem;
-    }
-    .verdict-badge {
-        font-size: 2.5rem;
-    }
-    .stat-value {
-        font-size: 1.4rem;
-    }
-    .stat-grid {
-        gap: 0.8rem;
-    }
-    .method-card {
-        padding: 0.8rem;
-    }
-    .neon-btn {
-        padding: 0.5rem 1rem;
-        font-size: 0.85rem;
-    }
+    .gradio-container { padding: 1.5rem !important; }
+    .glass-header h1 { font-size: 2.5rem; }
+    .glass-header p { font-size: 1rem; }
+    .glass-card { padding: 1.2rem; }
+    .verdict-badge { font-size: 2.5rem; }
+    .stat-value { font-size: 1.4rem; }
+    .stat-grid { gap: 0.8rem; }
+    .method-card { padding: 0.8rem; }
+    .neon-btn { padding: 0.5rem 1rem; font-size: 0.85rem; }
 }
 
-/* Mobile view (max-width: 768px) */
 @media (max-width: 768px) {
-    .gradio-container {
-        padding: 1rem !important;
-    }
-    .glass-header {
-        padding: 1rem;
-        border-radius: 1.5rem;
-        margin-bottom: 1rem;
-    }
-    .glass-header h1 {
-        font-size: 1.8rem;
-    }
-    .glass-header p {
-        font-size: 0.85rem;
-    }
-    .glass-card {
-        padding: 1rem;
-        border-radius: 1.5rem;
-        margin-bottom: 1rem;
-    }
-    /* Stack columns vertically on mobile */
-    .gradio-container .gr-row {
-        flex-direction: column !important;
-    }
-    .gr-row > .gr-column {
-        width: 100% !important;
-        margin-bottom: 1rem;
-    }
-    .upload-area {
-        height: 220px !important;
-    }
-    .verdict-glass {
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    .verdict-badge {
-        font-size: 2rem;
-    }
-    .gauge-container {
-        height: 8px;
-    }
-    .stat-grid {
-        gap: 0.5rem;
-        margin: 1rem 0;
-    }
-    .stat-card {
-        padding: 0.6rem;
-    }
-    .stat-value {
-        font-size: 1.2rem;
-    }
-    .stat-label {
-        font-size: 0.65rem;
-    }
-    .method-card {
-        padding: 0.7rem;
-        margin-bottom: 0.6rem;
-    }
-    .method-card div {
-        font-size: 0.85rem;
-    }
-    .neon-btn {
-        padding: 0.5rem 0.8rem;
-        font-size: 0.8rem;
-        border-radius: 2rem;
-    }
-    .rating-section {
-        margin-top: 0.5rem;
-    }
-    .legal-note {
-        font-size: 0.7rem;
-        margin-top: 0.8rem;
-    }
-    .review-heading {
-        font-size: 1.4rem;
-    }
-    .review-sub {
-        font-size: 0.8rem;
-        margin-bottom: 1rem;
-    }
-    .glass-textarea {
-        padding: 0.8rem !important;
-        font-size: 0.9rem !important;
-    }
-    .footer {
-        padding: 1rem;
-        gap: 1rem;
-        font-size: 0.7rem;
-    }
-    .json-viewer {
-        font-size: 0.8rem !important;
-    }
+    .gradio-container { padding: 1rem !important; }
+    .glass-header { padding: 1rem; border-radius: 1.5rem; margin-bottom: 1rem; }
+    .glass-header h1 { font-size: 1.8rem; }
+    .glass-header p { font-size: 0.85rem; }
+    .glass-card { padding: 1rem; border-radius: 1.5rem; margin-bottom: 1rem; }
+    .gradio-container .gr-row { flex-direction: column !important; }
+    .gr-row > .gr-column { width: 100% !important; margin-bottom: 1rem; }
+    .upload-area { height: 220px !important; }
+    .verdict-glass { padding: 1rem; margin-bottom: 1rem; }
+    .verdict-badge { font-size: 2rem; }
+    .gauge-container { height: 8px; }
+    .stat-grid { gap: 0.5rem; margin: 1rem 0; }
+    .stat-card { padding: 0.6rem; }
+    .stat-value { font-size: 1.2rem; }
+    .stat-label { font-size: 0.65rem; }
+    .method-card { padding: 0.7rem; margin-bottom: 0.6rem; }
+    .method-card div { font-size: 0.85rem; }
+    .neon-btn { padding: 0.5rem 0.8rem; font-size: 0.8rem; border-radius: 2rem; }
+    .mimi-controls button { min-width: 80px; }
+    .footer { padding: 1rem; gap: 1rem; font-size: 0.7rem; }
+    .json-viewer { font-size: 0.8rem !important; }
+    .legal-note { font-size: 0.75rem; }
 }
 """
 
-with gr.Blocks(css=custom_css, title="DeepGuard - AI Media Forensics") as demo:
+with gr.Blocks(css=custom_css, title="DeepGuard + Mimi") as demo:
+    # Header
     gr.HTML("""
     <div class="glass-header">
         <h1>🛡️ DeepGuard</h1>
-        <p>Advanced AI-Generated Media Detection – Next‑Gen Interface</p>
+        <p>Advanced AI-Generated Media Detection – with Mimi assistant</p>
     </div>
     """)
 
     with gr.Row(equal_height=True):
+        # Left: Upload + Analysis
         with gr.Column(scale=4, elem_classes="glass-card"):
             gr.Markdown("### 📸 Upload Image")
             image_input = gr.Image(type="pil", height=320, elem_classes="upload-area", show_label=False)
@@ -850,7 +839,8 @@ with gr.Blocks(css=custom_css, title="DeepGuard - AI Media Forensics") as demo:
                 analyze_btn = gr.Button("🔍 Analyze", elem_classes="neon-btn")
                 clear_btn = gr.Button("⟳ Reset", elem_classes="neon-btn")
 
-        with gr.Column(scale=6, elem_classes="glass-card"):
+        # Middle: Results
+        with gr.Column(scale=5, elem_classes="glass-card"):
             gr.Markdown("### 📊 Forensic Report")
             with gr.Tabs():
                 with gr.TabItem("🎯 Verdict"):
@@ -858,36 +848,30 @@ with gr.Blocks(css=custom_css, title="DeepGuard - AI Media Forensics") as demo:
                 with gr.TabItem("🔬 Technical Data"):
                     json_output = gr.Code(label="Raw Data", language="json", elem_classes="json-viewer", lines=18)
 
-    # Explain section
-    with gr.Row():
-        with gr.Column():
-            explain_btn = gr.Button("❓ Explain Prediction", elem_classes="neon-btn", visible=False)   
-            explanation_output = gr.Markdown(label="Explanation", visible=True, value="")
-            gr.Markdown("---")
+        # Right: Mimi Panel (contains reaction + hidden buttons)
+        with gr.Column(scale=3, elem_classes="mimi-panel"):
+            gr.Markdown("### 🎭 Mimi's Corner")
+            mimi_display = gr.HTML(mimi_idle())
+            # Explain button (initially hidden)
+            with gr.Row(elem_classes="mimi-controls"):
+                explain_btn = gr.Button("❓ Explain Prediction", elem_classes="neon-btn", visible=False)
+            # Rating label + buttons (initially hidden)
+            rating_label = gr.Markdown("**Rate the prediction**", visible=False)
+            with gr.Row(elem_classes="feedback-buttons"):
+                thumbs_up = gr.Button("👍 Correct", elem_classes="neon-btn", visible=False)
+                thumbs_down = gr.Button("👎 Incorrect", elem_classes="neon-btn", visible=False)
 
-    # Rating section
-    with gr.Row():
-        with gr.Column(elem_classes="glass-card rating-section"):
-            gr.Markdown("### 📝 Rate this prediction")
-            with gr.Row():
-                thumbs_up = gr.Button("👍 Thumbs Up (Correct)", elem_classes="neon-btn")
-                thumbs_down = gr.Button("👎 Thumbs Down (Incorrect)", elem_classes="neon-btn")
-            gr.HTML("""
-            <div class="legal-note">
-                <i class="fas fa-info-circle"></i> <strong>Legal notice:</strong> By clicking 👍 or 👎, 
-                you agree that your image will be stored permanently to help improve the deepfake 
-                detection model. Your feedback is anonymized and used solely for research purposes.
-            </div>
-            """)
+    # Explanation output (initially visible but empty, appears when Explain button is clicked)
+    explanation_output = gr.Markdown(label="Explanation", visible=True, value="")
 
     # Review section
     with gr.Row():
         with gr.Column(elem_classes="glass-card"):
             gr.HTML("""
-            <div class="review-heading">
+            <div style="font-size:1.8rem; font-weight:700; background:linear-gradient(135deg,#a5f3fc,#c084fc,#f472b6); background-size:200% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:0.5rem; text-align:center;">
                 <i class="fas fa-pen-fancy"></i> Leave a Detailed Review
             </div>
-            <div class="review-sub">
+            <div style="text-align:center; color:#9ca3af; margin-bottom:1.5rem; font-size:0.9rem;">
                 Help us improve – your feedback matters
             </div>
             """)
@@ -900,38 +884,82 @@ with gr.Blocks(css=custom_css, title="DeepGuard - AI Media Forensics") as demo:
             submit_review_btn = gr.Button("Submit Review", elem_classes="neon-btn")
             review_output = gr.HTML(label="")
 
+    # Legal notice (bigger size)
+    gr.HTML("""
+    <div class="legal-note">
+        <i class="fas fa-info-circle"></i> <strong>Legal notice:</strong> By clicking 👍 or 👎, 
+        you agree that your image will be stored permanently to help improve the deepfake 
+        detection model. Your feedback is anonymized and used solely for research purposes.
+    </div>
+    """)
+
+    # States
     analysis_state = gr.State(None)
     explanation_shown = gr.State(False)
 
+    # Analyze button: runs analysis, shows results, reveals buttons, updates Mimi
     analyze_btn.click(
         fn=analyze_media,
         inputs=[image_input],
-        outputs=[score_output, json_output, analysis_state, explain_btn, explanation_output]
+        outputs=[score_output, json_output, analysis_state, explain_btn, explanation_output, mimi_display]
+    ).then(
+        fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=True), gr.update(visible=True)),
+        outputs=[explain_btn, rating_label, thumbs_up, thumbs_down]
     ).then(
         fn=lambda: ("", False),
         outputs=[explanation_output, explanation_shown]
     )
 
+    # Explain button: toggles explanation and shows Mimi reaction
     explain_btn.click(
         fn=toggle_explanation,
         inputs=[analysis_state, explanation_shown],
-        outputs=[explanation_output, explanation_shown]
+        outputs=[explanation_output, explanation_shown, mimi_display]
     )
 
-    thumbs_up.click(fn=on_thumbs_up, inputs=[analysis_state], outputs=[])
-    thumbs_down.click(fn=on_thumbs_down, inputs=[analysis_state], outputs=[])
-    submit_review_btn.click(fn=on_submit_review, inputs=[analysis_state, review_input], outputs=[review_output])
+    # Thumbs up: stores feedback + Mimi reaction
+    thumbs_up.click(
+        fn=on_thumbs_up,
+        inputs=[analysis_state],
+        outputs=[mimi_display]
+    )
 
+    # Thumbs down: stores feedback + Mimi reaction
+    thumbs_down.click(
+        fn=on_thumbs_down,
+        inputs=[analysis_state],
+        outputs=[mimi_display]
+    )
+
+    # Submit review (no Mimi reaction)
+    submit_review_btn.click(
+        fn=on_submit_review,
+        inputs=[analysis_state, review_input],
+        outputs=[review_output]
+    )
+
+    # Clear everything
     def clear_all():
         clear_temp_directory()
-        return (None, "", None, gr.update(visible=False), "", "", False)
+        return (
+            None, "", None,
+            gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False),
+            "", "",
+            mimi_idle(), False
+        )
 
     clear_btn.click(
         fn=clear_all,
         inputs=[],
-        outputs=[image_input, score_output, analysis_state, explain_btn, explanation_output, json_output, explanation_shown]
+        outputs=[
+            image_input, score_output, analysis_state,
+            explain_btn, rating_label, thumbs_up, thumbs_down,
+            explanation_output, json_output,
+            mimi_display, explanation_shown
+        ]
     )
 
+    # Footer
     gr.HTML("""
     <div class="footer">
         <span><i class="fas fa-copyright"></i> 2026 DeepGuard</span>
