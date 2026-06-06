@@ -2,6 +2,7 @@
 # DEEPGUARD with Mimi assistant MODERN UI (RESPONSIVE + COMPACT NEON BUTTONS)
 # TTA + Adversarial + Input Protection + Explain Toggle
 # Auto‑clean temp + Feedback + Reviews + Hugging Face Upload
+# Review textbox styled (dashed border, glass hover)
 # ============================================================
 
 import torch
@@ -299,7 +300,7 @@ WELCOME_MSG = """
     <p style="color:#94a3b8;font-size:0.85rem;margin:0;line-height:1.5;">
         I'm Mimi, your AI detection assistant!<br>
         Upload an image and I'll analyze if it's real or fake.<br>
-        I use a fine‑tuned Vision Transformer, test‑time augmentation, and forensic checks.<br>
+        I use a deepfake model, test‑time augmentation, and forensic checks<br>
         to detect AI-generated content. Let's catch some fakes! 🔍
     </p>
 </div>
@@ -520,7 +521,7 @@ def toggle_explanation(extra_info, shown):
             **Confidence:** {confidence:.1f}%
 
             **Why?**
-            - The primary model uses a fine‑tuned Vision Transformer with Test‑Time Augmentation (TTA). It analyses the image as is and with slight blur, then averages the results.
+            - The primary model uses a deepfake model with Test‑Time Augmentation (TTA). It analyses the image as is and with slight blur, then averages the results.
             - TTA stability score (std): {tta_std:.1f}% {'(high – prediction is unstable)' if tta_std > 10 else '(low – prediction is stable)'}
             - Adversarial check: adding random noise changed the score by {adv_diff:.1f}% {'– this is suspicious (could indicate manipulation)' if adv_susp else '– this is normal for real images'}
 
@@ -630,6 +631,41 @@ custom_css = """
 .upload-area:hover {
     border-color: #c084fc;
     background: rgba(168, 85, 247, 0.05);
+}
+
+/* Styling for the review textbox */
+.review-upload-area {
+    border: 2px dashed rgba(168, 85, 247, 0.5) !important;
+    border-radius: 1.5rem !important;
+    background: #000000 !important;
+    transition: all 0.3s !important;
+    padding: 0.5rem !important;
+}
+
+.review-upload-area:hover {
+    border-color: #c084fc !important;
+    background: #0a0a0a !important;
+}
+
+/* Style the textarea itself */
+.review-upload-area textarea {
+    background: transparent !important;
+    color: #e2e8f0 !important;
+    border: none !important;
+    padding: 0.8rem !important;
+    font-family: 'Inter', monospace !important;
+    font-size: 0.9rem !important;
+}
+
+.review-upload-area textarea:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.review-upload-area label {
+    color: #cbd5e1 !important;
+    font-weight: 500 !important;
+    margin-bottom: 0.5rem !important;
 }
 
 .neon-btn {
@@ -764,6 +800,33 @@ custom_css = """
     border-radius: 12px;
 }
 
+/* Terms & Conditions collapsible – plain text link, no button styling */
+details.terms-details {
+    display: inline;
+}
+details.terms-details summary {
+    list-style: none;
+    display: inline;
+    color: #c084fc;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 500;
+    margin-left: 0.5rem;
+}
+details.terms-details summary::-webkit-details-marker {
+    display: none;
+}
+.terms-content-inner {
+    margin-top: 0.75rem;
+    padding: 1rem;
+    background: #1e293b;
+    border-radius: 12px;
+    border-left: 3px solid #8b5cf6;
+    color: #e2e8f0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
 .footer {
     margin-top: 2rem;
     padding: 1.5rem;
@@ -820,6 +883,8 @@ custom_css = """
     .footer { padding: 1rem; gap: 1rem; font-size: 0.7rem; }
     .json-viewer { font-size: 0.8rem !important; }
     .legal-note { font-size: 0.75rem; }
+    .terms-content-inner { font-size: 0.75rem; }
+    .review-upload-area textarea { font-size: 0.8rem !important; padding: 0.6rem !important; }
 }
 """
 
@@ -828,7 +893,7 @@ with gr.Blocks(css=custom_css, title="DeepGuard + Mimi") as demo:
     gr.HTML("""
     <div class="glass-header">
         <h1>🛡️ DeepGuard</h1>
-        <p>Advanced AI-Generated Media Detection – with Mimi assistant</p>
+        <p>Advanced AI-Generated Media Detection with Mimi assistant</p>
     </div>
     """)
 
@@ -836,7 +901,7 @@ with gr.Blocks(css=custom_css, title="DeepGuard + Mimi") as demo:
         # Left: Upload + Analysis
         with gr.Column(scale=4, elem_classes="glass-card"):
             gr.Markdown("### 📸 Upload Image")
-            image_input = gr.Image(type="pil", height=320, elem_classes="upload-area", show_label=False)
+            image_input = gr.Image(type="pil", height=320, sources=["upload", "clipboard"], elem_classes="upload-area", show_label=False)
             with gr.Row():
                 analyze_btn = gr.Button("🔍 Analyze", elem_classes="neon-btn")
                 clear_btn = gr.Button("⟳ Reset", elem_classes="neon-btn")
@@ -866,32 +931,58 @@ with gr.Blocks(css=custom_css, title="DeepGuard + Mimi") as demo:
     # Explanation output (initially visible but empty, appears when Explain button is clicked)
     explanation_output = gr.Markdown(label="Explanation", visible=True, value="")
 
-    # Review section
+    # ========== REVIEW SECTION  ==========
     with gr.Row():
         with gr.Column(elem_classes="glass-card"):
             gr.HTML("""
             <div style="font-size:1.8rem; font-weight:700; background:linear-gradient(135deg,#a5f3fc,#c084fc,#f472b6); background-size:200% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:0.5rem; text-align:center;">
                 <i class="fas fa-pen-fancy"></i> Leave a Detailed Review
             </div>
-            <div style="text-align:center; color:#9ca3af; margin-bottom:1.5rem; font-size:0.9rem;">
+            <div style="text-align:center; color:#9ca3af; margin-bottom:1rem; font-size:0.9rem;">
                 Help us improve – your feedback matters
             </div>
             """)
+            # Textbox with custom class that mimics upload area
             review_input = gr.Textbox(
                 label="Your comments",
-                lines=3,
-                placeholder="What did you think of this app? Be honest – we love constructive feedback!",
-                elem_classes="glass-textarea"
+                lines=4,
+                placeholder="What did you think of this app? Be honest, we love constructive feedback!",
+                elem_classes="review-upload-area",
+                show_label=True
             )
             submit_review_btn = gr.Button("Submit Review", elem_classes="neon-btn")
             review_output = gr.HTML(label="")
 
-    # Legal notice 
+    # ========== LEGAL NOTICE + COLLAPSIBLE TERMS (native <details>) ==========
     gr.HTML("""
     <div class="legal-note">
         <i class="fas fa-info-circle"></i> <strong>Legal notice:</strong> By clicking 👍 or 👎, 
         you agree that your image will be stored permanently to help improve the deepfake 
         detection model. Your feedback is anonymized and used solely for research purposes.
+        <details class="terms-details" style="display: inline;">
+            <summary>📜 Terms & Conditions</summary>
+            <div class="terms-content-inner">
+                <strong style="color:#a5f3fc;">📜 Terms & Conditions</strong><br><br>
+                Welcome to <strong>DeepGuard</strong> an AI‑powered media forensics tool. By using this application, you agree to the following terms:<br><br>
+                <strong>• Research Use Only:</strong> DeepGuard is provided for research, educational, and non‑commercial purposes. It is not a substitute for professional forensic investigation.<br>
+                <strong>• Data Collection & Storage:</strong> Images are temporarily saved for analysis and then destroyed when a new image is uploaded. If you provide feedback (👍 / 👎) or a written review, the image and your rating/review <strong>will be stored permanently</strong> on Hugging Face Hub (<code>king1oo1/deepguard-feedback</code>) to improve the model.<br>
+                <strong>• Anonymity:</strong> No personally identifiable information (PII) is collected. Image hashes are used instead of raw filenames. Reviews are stored without email or IP addresses.<br>
+                <strong>• Your Consent:</strong> By giving feedback (👍/👎), you explicitly consent to permanent storage of your image and associated data.<br>
+                <strong>• Right to Opt Out:</strong> If you do not wish your image to be stored, simply do not use the feedback buttons.<br>
+                <strong>• No Warranty:</strong> DeepGuard is provided “as is”. Predictions may be incorrect. The developers are not liable for any decisions made based on the output.<br>
+                <strong>• Changes to Terms:</strong> We may update these terms. Continued use after changes constitutes acceptance.<br><br>
+                For any questions, please contact the repository owner on Hugging Face.
+            </div>
+        </details>
+    </div>
+    """)
+
+    # Footer
+    gr.HTML("""
+    <div class="footer">
+        <span><i class="fas fa-copyright"></i> 2026 DeepGuard</span>
+        <span><i class="fas fa-flask"></i> Research Use Only</span>
+        <span><i class="fas fa-database"></i> Feedback stored & uploaded to Hugging Face Hub</span>
     </div>
     """)
 
@@ -940,14 +1031,15 @@ with gr.Blocks(css=custom_css, title="DeepGuard + Mimi") as demo:
         outputs=[review_output]
     )
 
-    # Clear everything
+        # Clear everything
     def clear_all():
         clear_temp_directory()
         return (
             None, "", None,
             gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False),
             "", "",
-            mimi_idle(), False
+            mimi_idle(), False,
+            "", ""   
         )
 
     clear_btn.click(
@@ -957,18 +1049,10 @@ with gr.Blocks(css=custom_css, title="DeepGuard + Mimi") as demo:
             image_input, score_output, analysis_state,
             explain_btn, rating_label, thumbs_up, thumbs_down,
             explanation_output, json_output,
-            mimi_display, explanation_shown
+            mimi_display, explanation_shown,
+            review_input, review_output   
         ]
     )
-
-    # Footer
-    gr.HTML("""
-    <div class="footer">
-        <span><i class="fas fa-copyright"></i> 2026 DeepGuard</span>
-        <span><i class="fas fa-flask"></i> Research Use Only</span>
-        <span><i class="fas fa-database"></i> Feedback stored & uploaded to Hugging Face Hub</span>
-    </div>
-    """)
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860, ssr_mode=False)
